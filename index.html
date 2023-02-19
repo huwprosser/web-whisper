@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Web-Speech-Socket-Base</title>
+
+        <link
+            href="https://fonts.googleapis.com/css2?family=Exo:wght@400;500;600;700&display=swap"
+            rel="stylesheet"
+        />
+        <script src="https://cdn.socket.io/4.1.2/socket.io.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/@ricky0123/vad/dist/index.browser.js"></script>
+        <style>
+            body {
+                font-family: sans-serif;
+                font-family: "Exo", sans-serif;
+
+                background: #070815;
+                color: white;
+            }
+            h1 {
+                text-align: center;
+                font-weight: lighter;
+            }
+            button {
+                display: block;
+                margin: 0 auto;
+                padding: 10px 20px;
+                font-size: 1.2rem;
+                border: none;
+                border-radius: 5px;
+                cursor: pointer;
+            }
+            textarea {
+                display: block;
+                margin: 0 auto;
+                width: 100%;
+                height: 300px;
+                padding: 10px;
+                font-size: 1.2rem;
+                background: transparent;
+                color: white;
+                font-family: "Exo", sans-serif;
+                border: none;
+                border-radius: 5px;
+                cursor: pointer;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>Web Whisper</h1>
+        <p id="status"></p>
+        <textarea id="output"></textarea>
+    </body>
+
+    <script>
+        const output = document.getElementById("output");
+        const status = document.getElementById("status");
+
+        async function main() {
+            const socket = io();
+
+            socket.on("connect", async () => {
+                const myvad = await vad.MicVAD.new({
+                    positiveSpeechThreshold: 0.8,
+                    negativeSpeechThreshold: 0.8 - 0.15,
+                    minSpeechFrames: 1,
+                    preSpeechPadFrames: 1,
+                    redemptionFrames: 2,
+                    onSpeechStart: () => {
+                        console.log("Speech start detected");
+                        status.innerText = "Listening...";
+                    },
+                    onSpeechEnd: (audio) => {
+                        status.innerText = "Processing...";
+                        const wavBuffer = vad.utils.encodeWAV(audio);
+                        const base64 = vad.utils.arrayBufferToBase64(wavBuffer);
+                        socket.emit("audio_data", base64);
+                    },
+                });
+                myvad.start();
+            });
+            socket.on("transcription", (data) => {
+                status.innerText = "";
+                output.value = (output.value + data)
+                    .replace(".", " ")
+                    .replace("  ", " ");
+            });
+        }
+        main();
+    </script>
+</html>
